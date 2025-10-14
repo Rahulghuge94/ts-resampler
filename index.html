@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TimeSeries Resampler</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <style>
+        .flatpickr-day.selected {
+            background: #667eea !important;
+            border-color: #667eea !important;
+        }
+        .flatpickr-day.selected:hover {
+            background: #764ba2 !important;
+            border-color: #764ba2 !important;
+        }
+    </style>
+</head>
+<body class="bg-white from-gray-500 via-gray-500 to-pink-500 min-h-screen p-4 md:p-8">
+    <div class="max-w-4xl mx-auto bg-white rounded-2xl shadow-2xl overflow-hidden">
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-gray-800 to-gray-500 text-white p-8 text-center h-26">
+            <h2 class="text-3xl font-bold mb-2">TimeSeries Resampler</h1>
+            <p class="text-indigo-100">Resample rainfall, depth and flow CSV using Python</p>
+        </div>
+
+        <div class="p-6 md:p-8">
+            <!-- File Upload Section -->
+            <div class="mb-6 p-6 bg-gray-50 rounded-lg border-l-4 border-green-200">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                    <span class="w-2 h-2 bg-indigo-500 rounded-full mr-3"></span>
+                    Upload CSV File
+                </h3>
+                <div class="relative">
+                    <input type="file" id="csvFile" accept=".csv" class="hidden" />
+                    <label for="csvFile" class="flex items-center justify-center px-4 py-3 bg-white border-2 border-dashed border-indigo-500 rounded-lg cursor-pointer hover:bg-indigo-50 transition-colors">
+                        <span class="text-indigo-600 font-medium">📁 Choose CSV File</span>
+                    </label>
+                    <div id="fileName" class="mt-2 text-sm text-indigo-600 font-medium"></div>
+                </div>
+            </div>
+
+            <!-- Column Configuration Section -->
+            <div class="mb-6 p-6 bg-gray-50 rounded-lg border-l-4 border-green-200">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                    <span class="w-2 h-2 bg-indigo-500 rounded-full mr-3"></span>
+                    Column Configuration
+                </h3>
+
+                <!-- DateTime Type Selection -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">DateTime Column Configuration:</label>
+                    <div class="flex flex-wrap gap-4">
+                        <label class="flex items-center cursor-pointer">
+                            <input type="radio" name="dateTimeType" value="single" checked class="w-4 h-4 text-indigo-600 focus:ring-indigo-500" />
+                            <span class="ml-2 text-gray-700">Single DateTime Column</span>
+                        </label>
+                        <label class="flex items-center cursor-pointer">
+                            <input type="radio" name="dateTimeType" value="separate" class="w-4 h-4 text-indigo-600 focus:ring-indigo-500" />
+                            <span class="ml-2 text-gray-700">Separate Date & Time Columns</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Single DateTime Column Input -->
+                <div id="singleColumnInputs">
+                    <div class="mb-4">
+                        <label for="datetimeColumn" class="block text-sm font-medium text-gray-700 mb-2">DateTime Column:</label>
+                        <select id="datetimeColumn" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none transition-colors">
+                            <option value="">Select datetime column...</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Separate Date & Time Columns Input -->
+                <div id="separateColumnInputs" class="hidden">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label for="dateColumn" class="block text-sm font-medium text-gray-700 mb-2">Date Column:</label>
+                            <select id="dateColumn" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none transition-colors">
+                                <option value="">Select date column...</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="timeColumn" class="block text-sm font-medium text-gray-700 mb-2">Time Column:</label>
+                            <select id="timeColumn" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none transition-colors">
+                                <option value="">Select time column...</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Value Column -->
+                <div class="mb-4">
+                    <label for="valueColumn" class="block text-sm font-medium text-gray-700 mb-2">Value Column:</label>
+                    <select id="valueColumn" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-green-200 focus:outline-none transition-colors">
+                        <option value="">Select value column...</option>
+                    </select>
+                </div>
+
+                <!-- DateTime Format -->
+                <div class="mb-4">
+                    <label for="dateFormat" class="block text-sm font-medium text-gray-700 mb-2">DateTime Format:</label>
+                    <select id="dateFormat" value="%d/%m/%Y %H:%M" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-green-200 focus:outline-none transition-colors">
+						<option value="%d/%m/%Y %H:%M">dd/mm/yyyy hh:mm</option>
+						<option value="%d/%m/%Y %H:%M:%S">dd/mm/yyyy hh:mm:ss</option>
+						<option value="%d-%m-%Y %H:%M">dd-mm-yyyy hh:mm</option>
+						<option value="%d-%m-%Y %H:%M:%S">dd-mm-yyyy hh:mm:ss</option>
+						<option value="%Y/%m/%d %H:%M">yyyy/mm/dd hh:mm</option>
+						<option value="%Y/%m/%d %H:%M:%S">yyyy/mm/dd hh:mm:ss</option>
+						<option value="%Y-%m-%d %H:%M">yyyy-mm-dd hh:mm</option>
+						<option value="%Y-%m-%d %H:%M:%S">yyyy-mm-dd hh:mm:ss</option>
+					</select>
+              
+                </div>
+            </div>
+
+            <!-- Resampling Parameters Section -->
+            <div class="mb-6 p-6 bg-gray-50 rounded-lg border-l-4 border-green-200">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                    <span class="w-2 h-2 bg-indigo-500 rounded-full mr-3"></span>
+                    Resampling Parameters
+                </h3>
+
+                <!-- Start and End Date -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label for="startDate" class="block text-sm font-medium text-gray-700 mb-2">Start Date & Time:</label>
+                        <input type="text" id="startDate" placeholder="Select date and time..." class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-green-200 focus:outline-none transition-colors cursor-pointer" />
+                    </div>
+                    <div>
+                        <label for="endDate" class="block text-sm font-medium text-gray-700 mb-2">End Date & Time:</label>
+                        <input type="text" id="endDate" placeholder="Select date and time..." class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none transition-colors cursor-pointer" />
+                    </div>
+                </div>
+
+                <!-- Timestep -->
+                <div class="mb-4">
+                    <label for="timestep" class="block text-sm font-medium text-gray-700 mb-2">Timestep:</label>
+                    <select id="timestep" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none transition-colors">
+                        <option value="1min">1 Minute</option>
+                        <option value="5min" selected>5 Minutes</option>
+                        <option value="10min">10 Minutes</option>
+                        <option value="15min">15 Minutes</option>
+                        <option value="30min">30 Minutes</option>
+                        <option value="1H">1 Hour</option>
+                        <option value="3H">3 Hours</option>
+                        <option value="6H">6 Hours</option>
+                        <option value="12H">12 Hours</option>
+                        <option value="1D">1 Day</option>
+                        <option value="1W">1 Week</option>
+                        <option value="1M">1 Month</option>
+                    </select>
+                </div>
+
+                <!-- Fill Method -->
+                <div class="mb-4">
+                    <label for="fillMethod" class="block text-sm font-medium text-gray-700 mb-2">Fill Method:</label>
+                    <select id="fillMethod" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none transition-colors">
+                        <option value="ffill">Forward Fill</option>
+                        <option value="bfill">Backward Fill</option>
+                        <option value="interpolate">Interpolate</option>
+                        <option value="value">Predefined Value</option>
+                    </select>
+                </div>
+
+                <!-- Fill Value (conditional) -->
+                <div id="fillValueGroup" class="mb-4 hidden">
+                    <label for="fillValue" class="block text-sm font-medium text-gray-700 mb-2">Fill Value:</label>
+                    <input type="text" id="fillValue" value="0" placeholder="e.g., 0, -999" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none transition-colors" />
+                </div>
+				<!-- Multiply Value-->
+                <div id="multValueGroup" class="mb-4">
+                    <label for="multValue" class="block text-sm font-medium text-gray-700 mb-2">Value Multiplier:</label>
+                    <input type="text" id="multValue" placeholder="e.g., 0, -999" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none transition-colors" />
+                </div>
+				<!-- Remove Value Above-->
+                <div id="remValueAboveGroup" class="mb-4">
+                    <label for="remValueAbove" class="block text-sm font-medium text-gray-700 mb-2">Remove Value Above:</label>
+                    <input type="text" id="remValueAbove" placeholder="e.g., 0, -999" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none transition-colors" />
+                </div>
+				<!-- Remove Value below-->
+                <div id="remValueBelowGroup" class="mb-4">
+                    <label for="remValueBelow" class="block text-sm font-medium text-gray-700 mb-2">Remove Value below:</label>
+                    <input type="text" id="remValueBelow" placeholder="e.g., 0, -999" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none transition-colors" />
+                </div>
+            </div>
+
+            <!-- Process Button -->
+            <button id="processBtn" onclick="processData()" class="w-full h-12 bg-gradient-to-r from-gray-800 to-gray-400 text-white font-semibold py-3 px-6 rounded-lg hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none">
+                Process Data
+            </button>
+
+            <!-- Progress Section -->
+            <div id="progressContainer" class="hidden mt-6 p-6 bg-gray-50 rounded-lg">
+                <div class="w-full bg-gray-200 rounded-full h-2 mb-3 overflow-hidden">
+                    <div id="progressFill" class="bg-gradient-to-r from-indigo-600 to-purple-600 h-2 transition-all duration-300" style="width: 0%"></div>
+                </div>
+                <p id="statusText" class="text-center text-gray-600 text-sm">Initializing...</p>
+            </div>
+
+            <!-- Result Section -->
+            <div id="resultSection" class="hidden mt-6 p-6 bg-green-50 rounded-lg border-l-4 border-green-500">
+                <h3 class="text-lg font-semibold text-green-800 mb-2">Processing Complete!</h3>
+                <p id="resultMessage" class="text-green-700 mb-4"></p>
+                <button id="downloadBtn" onclick="downloadResult()" class="w-full bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold py-3 px-6 rounded-lg hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200">
+                    ⬇️ Download Resampled CSV
+                </button>
+            </div>
+
+            <!-- Error Section -->
+            <div id="errorSection" class="hidden mt-6 p-6 bg-red-50 rounded-lg border-l-4 border-red-500">
+                <h3 class="text-lg font-semibold text-red-800 mb-2">Error</h3>
+                <p id="errorMessage" class="text-red-700"></p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script>
+        let worker;
+        let processedData = null;
+        let originalFileName = '';
+        let startDatePicker, endDatePicker;
+        let csvColumns = [];
+
+        // Initialize Flatpickr
+        document.addEventListener('DOMContentLoaded', () => {
+            startDatePicker = flatpickr("#startDate", {
+                enableTime: true,
+                dateFormat: "d/m/Y H:i",
+                time_24hr: true,
+                minuteIncrement: 1,
+                allowInput: true
+            });
+
+            endDatePicker = flatpickr("#endDate", {
+                enableTime: true,
+                dateFormat: "d/m/Y H:i",
+                time_24hr: true,
+                minuteIncrement: 1,
+                allowInput: true
+            });
+        });
+
+        // Toggle column inputs based on selection
+        document.querySelectorAll('input[name="dateTimeType"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                if (e.target.value === 'single') {
+                    document.getElementById('singleColumnInputs').classList.remove('hidden');
+                    document.getElementById('separateColumnInputs').classList.add('hidden');
+                } else {
+                    document.getElementById('singleColumnInputs').classList.add('hidden');
+                    document.getElementById('separateColumnInputs').classList.remove('hidden');
+                }
+            });
+        });
+
+        // Toggle fill value input
+        document.getElementById('fillMethod').addEventListener('change', (e) => {
+            if (e.target.value === 'value') {
+                document.getElementById('fillValueGroup').classList.remove('hidden');
+            } else {
+                document.getElementById('fillValueGroup').classList.add('hidden');
+            }
+        });
+
+        // File input handler
+        document.getElementById('csvFile').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                originalFileName = file.name.replace('.csv', '');
+                document.getElementById('fileName').textContent = `Selected: ${file.name}`;
+                
+                // Read CSV and extract column names
+                try {
+                    const text = await file.text();
+                    const lines = text.split('\n');
+                    if (lines.length > 0) {
+                        csvColumns = lines[0].split(',').map(col => col.trim().replace(/"/g, ''));
+                        populateColumnSelects();
+                    }
+                } catch (error) {
+                    showError('Error reading CSV file: ' + error.message);
+                }
+            }
+        });
+
+        function populateColumnSelects() {
+            const selects = ['datetimeColumn', 'dateColumn', 'timeColumn', 'valueColumn'];
+            
+            selects.forEach(selectId => {
+                const select = document.getElementById(selectId);
+                select.innerHTML = '<option value="">Select column...</option>';
+                
+                csvColumns.forEach(col => {
+                    const option = document.createElement('option');
+                    option.value = col;
+                    option.textContent = col;
+                    select.appendChild(option);
+                });
+            });
+        }
+
+        function showProgress(show) {
+            document.getElementById('progressContainer').classList.toggle('hidden', !show);
+        }
+
+        function updateProgress(percent, status) {
+            document.getElementById('progressFill').style.width = percent + '%';
+            document.getElementById('statusText').textContent = status;
+        }
+
+        function showResult(message) {
+            document.getElementById('resultMessage').textContent = message;
+            document.getElementById('resultSection').classList.remove('hidden');
+            document.getElementById('errorSection').classList.add('hidden');
+        }
+
+        function showError(message) {
+            document.getElementById('errorMessage').textContent = message;
+            document.getElementById('errorSection').classList.remove('hidden');
+            document.getElementById('resultSection').classList.add('hidden');
+        }
+
+        async function processData() {
+            const fileInput = document.getElementById('csvFile');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                showError('Please select a CSV file');
+                return;
+            }
+
+            // Collect parameters
+            const dateTimeType = document.querySelector('input[name="dateTimeType"]:checked').value;
+            const params = {
+                startDate: document.getElementById('startDate').value,
+                endDate: document.getElementById('endDate').value,
+                dateFormat: document.getElementById('dateFormat').value,
+                valueColumn: document.getElementById('valueColumn').value,
+                timestep: document.getElementById('timestep').value,
+                fillMethod: document.getElementById('fillMethod').value,
+                fillValue: document.getElementById('fillValue').value,
+                dateTimeType: dateTimeType,
+				remValueBelow: document.getElementById('remValueBelow').value,
+				remValueAbove: document.getElementById('remValueAbove').value,
+				multValue: document.getElementById('multValue').value
+            };
+
+            if (dateTimeType === 'single') {
+                params.datetimeColumn = document.getElementById('datetimeColumn').value;
+            } else {
+                params.dateColumn = document.getElementById('dateColumn').value;
+                params.timeColumn = document.getElementById('timeColumn').value;
+            }
+
+            // Validate inputs
+            //if (!params.startDate || !params.endDate) {
+                //showError('Please provide start and end dates');
+                //return;
+            //}
+
+            //if (!params.valueColumn) {
+                //showError('Please specify the value column');
+                //return;
+            //}
+
+            if (dateTimeType === 'single' && !params.datetimeColumn) {
+                showError('Please specify the datetime column');
+                return;
+            }
+
+            if (dateTimeType === 'separate' && (!params.dateColumn || !params.timeColumn)) {
+                showError('Please specify both date and time columns');
+                return;
+            }
+			
+			if (!params.valueColumn) {
+                showError('Please specify value column');
+                return;
+            }
+            // Disable process button
+            document.getElementById('processBtn').disabled = true;
+            document.getElementById('resultSection').classList.add('hidden');
+            document.getElementById('errorSection').classList.add('hidden');
+
+            showProgress(true);
+            updateProgress(0, 'Loading CSV file...');
+
+            try {
+                const csvContent = await file.text();
+                updateProgress(10, 'Initializing Pyodide worker...');
+
+                // Create worker
+                if (worker) {
+                    worker.terminate();
+                }
+
+                const workerCode = `
+                    let pyodide;
+                    
+                    async function loadPyodide() {
+                        importScripts('https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js');
+                        pyodide = await loadPyodide();
+                        await pyodide.loadPackage(['pandas', 'numpy']);
+                        return true;
+                    }
+
+                    async function processCSV(csvContent, params) {
+                        const escapedCsvContent = csvContent.replace(/\\\\/g, '\\\\\\\\').replace(/'/g, "\\\\'");
+                        pyodide.globals.set("csv_data", escapedCsvContent)
+						pyodide.globals.set("config", params)
+                        const pythonCode = \`
+config = config.to_py()
+
+import pandas as pd
+import numpy as np
+from io import StringIO
+import base64
+
+df = pd.read_csv(StringIO(csv_data))
+
+# Process datetime
+if config["dateTimeType"] == 'single':
+    datetime_col = config["datetimeColumn"]
+    df[datetime_col] = pd.to_datetime(df[datetime_col], format=config["dateFormat"])
+    df = df.set_index(datetime_col)
+else:
+    print( config )
+    date_col = config["dateColumn"]
+    time_col = config["timeColumn"]
+    df['datetime'] = pd.to_datetime(df[date_col] + ' ' + df[time_col], format=config["dateFormat"])
+    df = df.set_index('datetime')
+	del df[date_col]
+	del df[time_col]
+	
+# Select value column
+value_col = config["valueColumn"]
+df_value = df[value_col]
+# print( df )
+# Create date range
+start_date = config["startDate"]
+end_date = config["endDate"]
+if start_date:
+    start_date = pd.to_datetime(config["startDate"], format='%d-%m-%Y %H:%M')
+if end_date:
+    end_date = pd.to_datetime(config["endDate"], format='%d-%m-%Y %H:%M')
+# new_index = pd.date_range(start=start_date, end=end_date, freq=config["timestep"])
+print( start_date, end_date )
+# Reindex
+df_resampled = df
+if start_date and end_date:
+    df_resampled = df[(df.index >= start_date) & (df.index <= end_date)]
+if start_date and not end_date:
+    df_resampled =  df[(df.index >= start_date)]
+if not start_date and end_date:
+    df_resampled = df[(df.index <= end_date)]
+
+# Apply fill method
+fill_method = config["fillMethod"]
+if fill_method == 'ffill':
+    df_resampled = df_resampled.fillna(method='ffill')
+elif fill_method == 'bfill':
+    df_resampled = df_resampled.fillna(method='bfill')
+elif fill_method == 'interpolate':
+    df_resampled = df_resampled.interpolate(method='linear')
+elif fill_method == 'value':
+    df_resampled = df_resampled.fillna(float(config["fillValue"]))
+
+# remove values below/above thresholds
+if config["remValueBelow"]:
+    df_resampled = df_resampled[df_resampled[value_col] >= float(config["remValueBelow"])]
+
+if config["remValueAbove"]:
+    df_resampled = df_resampled[df_resampled[value_col] <= float(config["remValueAbove"])]
+
+# multiply values
+if config["multValue"]:
+    df_resampled[value_col] = df_resampled[value_col] * float(config["multValue"])
+
+if 
+# Reset index to make datetime a column
+df_resampled = df_resampled.reset_index()
+# df_resampled.columns = ['datetime', value_col]
+
+# Convert to CSV
+result = df_resampled.to_csv(index=False)
+result
+\`;
+
+                        try {
+                            const result = await pyodide.runPythonAsync(pythonCode);
+                            return { success: true, data: result };
+                        } catch (error) {
+                            return { success: false, error: error.message };
+                        }
+                    }
+
+                    self.onmessage = async (e) => {
+                        if (e.data.type === 'init') {
+                            self.postMessage({ type: 'progress', percent: 20, status: 'Loading Pyodide...' });
+                            await loadPyodide();
+                            self.postMessage({ type: 'progress', percent: 40, status: 'Pyodide loaded successfully' });
+                            self.postMessage({ type: 'ready' });
+                        } else if (e.data.type === 'process') {
+                            self.postMessage({ type: 'progress', percent: 50, status: 'Processing data...' });
+                            const result = await processCSV(e.data.csvContent, e.data.params);
+                            self.postMessage({ type: 'progress', percent: 90, status: 'Finalizing...' });
+                            
+                            if (result.success) {
+                                self.postMessage({ type: 'complete', data: result.data });
+                            } else {
+                                self.postMessage({ type: 'error', error: result.error });
+                            }
+                        }
+                    };
+                `;
+                
+                worker = new Worker(URL.createObjectURL(new Blob([workerCode], { type: 'application/javascript' })));
+
+                worker.onmessage = (e) => {
+                    if (e.data.type === 'progress') {
+                        updateProgress(e.data.percent, e.data.status);
+                    } else if (e.data.type === 'ready') {
+                        worker.postMessage({ type: 'process', csvContent: csvContent, params: params });
+                    } else if (e.data.type === 'complete') {
+                        processedData = e.data.data;
+                        updateProgress(100, 'Complete!');
+                        showResult(`Data resampled successfully with timestep: ${params.timestep}`);
+                        document.getElementById('processBtn').disabled = false;
+                    } else if (e.data.type === 'error') {
+                        showError('Processing error: ' + e.data.error);
+                        document.getElementById('processBtn').disabled = false;
+                        showProgress(false);
+                    }
+                };
+
+                worker.onerror = (error) => {
+                    showError('Worker error: ' + error.message);
+                    document.getElementById('processBtn').disabled = false;
+                    showProgress(false);
+                };
+
+                worker.postMessage({ type: 'init' });
+
+            } catch (error) {
+                showError('Error: ' + error.message);
+                document.getElementById('processBtn').disabled = false;
+                showProgress(false);
+            }
+        }
+
+        function downloadResult() {
+            if (!processedData) {
+                showError('No processed data available');
+                return;
+            }
+
+            const blob = new Blob([processedData], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${originalFileName}_resampled.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
