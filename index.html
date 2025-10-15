@@ -433,8 +433,6 @@ else:
     time_col = config["timeColumn"]
     df['datetime'] = pd.to_datetime(df[date_col] + ' ' + df[time_col], format=config["dateFormat"])
     df = df.set_index('datetime')
-	del df[date_col]
-	del df[time_col]
 	
 # Select value column
 value_col = config["valueColumn"]
@@ -480,7 +478,6 @@ if config["remValueAbove"]:
 if config["multValue"]:
     df_resampled[value_col] = df_resampled[value_col] * float(config["multValue"])
 
-if 
 # Reset index to make datetime a column
 df_resampled = df_resampled.reset_index()
 # df_resampled.columns = ['datetime', value_col]
@@ -570,4 +567,5 @@ result
         }
     </script>
 </body>
+
 </html>
