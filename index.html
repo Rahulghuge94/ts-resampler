@@ -21,7 +21,7 @@
     <div class="max-w-4xl mx-auto bg-white rounded-2xl shadow-2xl overflow-hidden">
         <!-- Header -->
         <div class="bg-gradient-to-r from-gray-800 to-gray-500 text-white p-8 text-center h-26">
-            <h2 class="text-3xl font-bold mb-2">TimeSeries Resampler</h1>
+            <h2 class="text-3xl font-bold mb-2">TimeSeries Resampler</h2>
             <p class="text-indigo-100">Resample rainfall, depth and flow CSV using Python</p>
         </div>
 
@@ -102,17 +102,16 @@
                 <!-- DateTime Format -->
                 <div class="mb-4">
                     <label for="dateFormat" class="block text-sm font-medium text-gray-700 mb-2">DateTime Format:</label>
-                    <select id="dateFormat" value="%d/%m/%Y %H:%M" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-green-200 focus:outline-none transition-colors">
-						<option value="%d/%m/%Y %H:%M">dd/mm/yyyy hh:mm</option>
-						<option value="%d/%m/%Y %H:%M:%S">dd/mm/yyyy hh:mm:ss</option>
-						<option value="%d-%m-%Y %H:%M">dd-mm-yyyy hh:mm</option>
-						<option value="%d-%m-%Y %H:%M:%S">dd-mm-yyyy hh:mm:ss</option>
-						<option value="%Y/%m/%d %H:%M">yyyy/mm/dd hh:mm</option>
-						<option value="%Y/%m/%d %H:%M:%S">yyyy/mm/dd hh:mm:ss</option>
-						<option value="%Y-%m-%d %H:%M">yyyy-mm-dd hh:mm</option>
-						<option value="%Y-%m-%d %H:%M:%S">yyyy-mm-dd hh:mm:ss</option>
-					</select>
-              
+                    <select id="dateFormat" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-green-200 focus:outline-none transition-colors">
+                        <option value="%d/%m/%Y %H:%M">dd/mm/yyyy hh:mm</option>
+                        <option value="%d/%m/%Y %H:%M:%S">dd/mm/yyyy hh:mm:ss</option>
+                        <option value="%d-%m-%Y %H:%M">dd-mm-yyyy hh:mm</option>
+                        <option value="%d-%m-%Y %H:%M:%S">dd-mm-yyyy hh:mm:ss</option>
+                        <option value="%Y/%m/%d %H:%M">yyyy/mm/dd hh:mm</option>
+                        <option value="%Y/%m/%d %H:%M:%S">yyyy/mm/dd hh:mm:ss</option>
+                        <option value="%Y-%m-%d %H:%M">yyyy-mm-dd hh:mm</option>
+                        <option value="%Y-%m-%d %H:%M:%S">yyyy-mm-dd hh:mm:ss</option>
+                    </select>
                 </div>
             </div>
 
@@ -170,20 +169,23 @@
                     <label for="fillValue" class="block text-sm font-medium text-gray-700 mb-2">Fill Value:</label>
                     <input type="text" id="fillValue" value="0" placeholder="e.g., 0, -999" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none transition-colors" />
                 </div>
-				<!-- Multiply Value-->
+
+                <!-- Multiply Value-->
                 <div id="multValueGroup" class="mb-4">
                     <label for="multValue" class="block text-sm font-medium text-gray-700 mb-2">Value Multiplier:</label>
-                    <input type="text" id="multValue" placeholder="e.g., 0, -999" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none transition-colors" />
+                    <input type="text" id="multValue" placeholder="e.g., 1, 0.5, 2" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none transition-colors" />
                 </div>
-				<!-- Remove Value Above-->
+
+                <!-- Remove Value Above-->
                 <div id="remValueAboveGroup" class="mb-4">
                     <label for="remValueAbove" class="block text-sm font-medium text-gray-700 mb-2">Remove Value Above:</label>
-                    <input type="text" id="remValueAbove" placeholder="e.g., 0, -999" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none transition-colors" />
+                    <input type="text" id="remValueAbove" placeholder="e.g., 100, 1000" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none transition-colors" />
                 </div>
-				<!-- Remove Value below-->
+
+                <!-- Remove Value below-->
                 <div id="remValueBelowGroup" class="mb-4">
-                    <label for="remValueBelow" class="block text-sm font-medium text-gray-700 mb-2">Remove Value below:</label>
-                    <input type="text" id="remValueBelow" placeholder="e.g., 0, -999" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none transition-colors" />
+                    <label for="remValueBelow" class="block text-sm font-medium text-gray-700 mb-2">Remove Value Below:</label>
+                    <input type="text" id="remValueBelow" placeholder="e.g., 0, -10" class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:outline-none transition-colors" />
                 </div>
             </div>
 
@@ -224,8 +226,9 @@
         let originalFileName = '';
         let startDatePicker, endDatePicker;
         let csvColumns = [];
+        let pyodideReady = false;
 
-        // Initialize Flatpickr
+        // Initialize Flatpickr and Pyodide
         document.addEventListener('DOMContentLoaded', () => {
             startDatePicker = flatpickr("#startDate", {
                 enableTime: true,
@@ -242,7 +245,183 @@
                 minuteIncrement: 1,
                 allowInput: true
             });
+
+            // Preload Pyodide immediately
+            initializePyodide();
         });
+
+        function initializePyodide() {
+            const processBtn = document.getElementById('processBtn');
+            processBtn.disabled = true;
+            processBtn.textContent = 'Loading Python Engine...';
+
+            worker = createWorker();
+            
+            worker.onmessage = (e) => {
+                handleWorkerMessage(e);
+            };
+
+            worker.onerror = (error) => {
+                console.error('Worker initialization error:', error);
+                processBtn.disabled = false;
+                processBtn.textContent = 'Process Data (Initialization Failed)';
+            };
+
+            worker.postMessage({ type: 'init' });
+        }
+
+        function handleWorkerMessage(e) {
+            const processBtn = document.getElementById('processBtn');
+            
+            if (e.data.type === 'progress') {
+                updateProgress(e.data.percent, e.data.status);
+                if (e.data.status.includes('Loading')) {
+                    processBtn.textContent = e.data.status;
+                }
+            } else if (e.data.type === 'ready') {
+                pyodideReady = true;
+                processBtn.disabled = false;
+                processBtn.textContent = 'Process Data';
+                console.log('Pyodide ready and loaded');
+            } else if (e.data.type === 'complete') {
+                processedData = e.data.data;
+                updateProgress(100, 'Complete!');
+                showResult(`Data resampled successfully with timestep: ${document.getElementById('timestep').value}`);
+                processBtn.disabled = false;
+            } else if (e.data.type === 'error') {
+                showError('Processing error: ' + e.data.error);
+                processBtn.disabled = false;
+                showProgress(false);
+            }
+        }
+
+        function createWorker() {
+            const workerCode = `
+                let pyodide;
+                
+                async function loadPyodide() {
+                    importScripts('https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js');
+                    pyodide = await loadPyodide();
+                    await pyodide.loadPackage(['pandas', 'numpy']);
+                    return true;
+                }
+
+                async function processCSV(csvContent, params) {
+                    pyodide.globals.set("csv_data", csvContent);
+                    pyodide.globals.set("config", params);
+                    
+                    const pythonCode = \`
+config = config.to_py()
+
+import pandas as pd
+import numpy as np
+from io import StringIO
+
+# Read CSV efficiently
+df = pd.read_csv(StringIO(csv_data), low_memory=False)
+
+# Process datetime
+if config["dateTimeType"] == 'single':
+    datetime_col = config["datetimeColumn"]
+    df[datetime_col] = pd.to_datetime(df[datetime_col], format=config["dateFormat"], errors='coerce')
+    df = df.set_index(datetime_col)
+else:
+    date_col = config["dateColumn"]
+    time_col = config["timeColumn"]
+    df[date_col] = df[date_col].replace(" ", "")
+    df[date_col] = df[date_col].apply(lambda x: x.replace("00:00:00.0000000", ""))
+    df[time_col] = df[time_col].replace(" ", "")
+    df["Datetime"] = df[date_col] + " " + df[time_col]
+    df = df.sort_values(by=['Datetime'])
+    df['Datetime'] = pd.to_datetime(df['Datetime'], format=config["dateFormat"], errors='coerce')
+    
+    df.set_index('Datetime', inplace=True)
+
+# Select value column
+value_col = config["valueColumn"]
+timestep = config["timestep"]
+# Convert value column to numeric
+df[value_col] = pd.to_numeric(df[value_col], errors='coerce')
+
+# Filter by date range
+start_date = config["startDate"]
+end_date = config["endDate"]
+
+if start_date:
+    start_date = pd.to_datetime(config["startDate"], format='%d/%m/%Y %H:%M', errors='coerce')
+if end_date:
+    end_date = pd.to_datetime(config["endDate"], format='%d/%m/%Y %H:%M', errors='coerce')
+
+if start_date and end_date:
+    df = df[(df.index >= start_date) & (df.index <= end_date)]
+elif start_date:
+    df = df[df.index >= start_date]
+elif end_date:
+    df = df[df.index <= end_date]
+
+# Apply fill method
+fill_method = config["fillMethod"]
+if fill_method == 'ffill':
+    df = df.resample(timestep).ffill()
+elif fill_method == 'bfill':
+    df = df.resample(timestep).bfill()
+elif fill_method == 'interpolate':
+    df = df.resample(timestep).interpolate(method='linear', limit_direction='both')
+elif fill_method == 'value':
+    df = df.resample(timestep).fillna(float(config["fillValue"]))
+
+# Remove values below/above thresholds BEFORE filling
+if config["remValueBelow"]:
+    threshold = float(config["remValueBelow"])
+    df.loc[df[value_col] < threshold, value_col] = np.nan
+
+if config["remValueAbove"]:
+    threshold = float(config["remValueAbove"])
+    df.loc[df[value_col] > threshold, value_col] = np.nan
+
+# Multiply values
+if config["multValue"]:
+    multiplier = float(config["multValue"])
+    df[value_col] = df[value_col] * multiplier
+
+# Reset index to make datetime a column
+df = df.reset_index()
+
+# Convert to CSV
+result = df.to_csv(index=False)
+result
+\`;
+
+                    try {
+                        const result = await pyodide.runPythonAsync(pythonCode);
+                        return { success: true, data: result };
+                    } catch (error) {
+                        return { success: false, error: error.message };
+                    }
+                }
+
+                self.onmessage = async (e) => {
+                    if (e.data.type === 'init') {
+                        self.postMessage({ type: 'progress', percent: 20, status: 'Loading Python Engine...' });
+                        await loadPyodide();
+                        self.postMessage({ type: 'progress', percent: 40, status: 'Python Engine Loaded' });
+                        self.postMessage({ type: 'ready' });
+                    } else if (e.data.type === 'process') {
+                        self.postMessage({ type: 'progress', percent: 50, status: 'Processing data...' });
+                        const result = await processCSV(e.data.csvContent, e.data.params);
+                        self.postMessage({ type: 'progress', percent: 90, status: 'Finalizing...' });
+                        
+                        if (result.success) {
+                            self.postMessage({ type: 'complete', data: result.data });
+                        } else {
+                            self.postMessage({ type: 'error', error: result.error });
+                        }
+                    }
+                };
+            `;
+            
+            return new Worker(URL.createObjectURL(new Blob([workerCode], { type: 'application/javascript' })));
+        }
 
         // Toggle column inputs based on selection
         document.querySelectorAll('input[name="dateTimeType"]').forEach(radio => {
@@ -333,6 +512,11 @@
                 return;
             }
 
+            if (!pyodideReady) {
+                showError('Python engine is still loading. Please wait...');
+                return;
+            }
+
             // Collect parameters
             const dateTimeType = document.querySelector('input[name="dateTimeType"]:checked').value;
             const params = {
@@ -344,9 +528,9 @@
                 fillMethod: document.getElementById('fillMethod').value,
                 fillValue: document.getElementById('fillValue').value,
                 dateTimeType: dateTimeType,
-				remValueBelow: document.getElementById('remValueBelow').value,
-				remValueAbove: document.getElementById('remValueAbove').value,
-				multValue: document.getElementById('multValue').value
+                remValueBelow: document.getElementById('remValueBelow').value,
+                remValueAbove: document.getElementById('remValueAbove').value,
+                multValue: document.getElementById('multValue').value
             };
 
             if (dateTimeType === 'single') {
@@ -357,16 +541,6 @@
             }
 
             // Validate inputs
-            //if (!params.startDate || !params.endDate) {
-                //showError('Please provide start and end dates');
-                //return;
-            //}
-
-            //if (!params.valueColumn) {
-                //showError('Please specify the value column');
-                //return;
-            //}
-
             if (dateTimeType === 'single' && !params.datetimeColumn) {
                 showError('Please specify the datetime column');
                 return;
@@ -376,171 +550,25 @@
                 showError('Please specify both date and time columns');
                 return;
             }
-			
-			if (!params.valueColumn) {
+            
+            if (!params.valueColumn) {
                 showError('Please specify value column');
                 return;
             }
+
             // Disable process button
             document.getElementById('processBtn').disabled = true;
             document.getElementById('resultSection').classList.add('hidden');
             document.getElementById('errorSection').classList.add('hidden');
 
             showProgress(true);
-            updateProgress(0, 'Loading CSV file...');
+            updateProgress(10, 'Reading CSV file...');
 
             try {
                 const csvContent = await file.text();
-                updateProgress(10, 'Initializing Pyodide worker...');
-
-                // Create worker
-                if (worker) {
-                    worker.terminate();
-                }
-
-                const workerCode = `
-                    let pyodide;
-                    
-                    async function loadPyodide() {
-                        importScripts('https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js');
-                        pyodide = await loadPyodide();
-                        await pyodide.loadPackage(['pandas', 'numpy']);
-                        return true;
-                    }
-
-                    async function processCSV(csvContent, params) {
-                        const escapedCsvContent = csvContent.replace(/\\\\/g, '\\\\\\\\').replace(/'/g, "\\\\'");
-                        pyodide.globals.set("csv_data", escapedCsvContent)
-						pyodide.globals.set("config", params)
-                        const pythonCode = \`
-config = config.to_py()
-
-import pandas as pd
-import numpy as np
-from io import StringIO
-import base64
-
-df = pd.read_csv(StringIO(csv_data))
-
-# Process datetime
-if config["dateTimeType"] == 'single':
-    datetime_col = config["datetimeColumn"]
-    df[datetime_col] = pd.to_datetime(df[datetime_col], format=config["dateFormat"])
-    df = df.set_index(datetime_col)
-else:
-    print( config )
-    date_col = config["dateColumn"]
-    time_col = config["timeColumn"]
-    df['datetime'] = pd.to_datetime(df[date_col] + ' ' + df[time_col], format=config["dateFormat"])
-    df = df.set_index('datetime')
-	
-# Select value column
-value_col = config["valueColumn"]
-df_value = df[value_col]
-# print( df )
-# Create date range
-start_date = config["startDate"]
-end_date = config["endDate"]
-if start_date:
-    start_date = pd.to_datetime(config["startDate"], format='%d-%m-%Y %H:%M')
-if end_date:
-    end_date = pd.to_datetime(config["endDate"], format='%d-%m-%Y %H:%M')
-# new_index = pd.date_range(start=start_date, end=end_date, freq=config["timestep"])
-print( start_date, end_date )
-# Reindex
-df_resampled = df
-if start_date and end_date:
-    df_resampled = df[(df.index >= start_date) & (df.index <= end_date)]
-if start_date and not end_date:
-    df_resampled =  df[(df.index >= start_date)]
-if not start_date and end_date:
-    df_resampled = df[(df.index <= end_date)]
-
-# Apply fill method
-fill_method = config["fillMethod"]
-if fill_method == 'ffill':
-    df_resampled = df_resampled.fillna(method='ffill')
-elif fill_method == 'bfill':
-    df_resampled = df_resampled.fillna(method='bfill')
-elif fill_method == 'interpolate':
-    df_resampled = df_resampled.interpolate(method='linear')
-elif fill_method == 'value':
-    df_resampled = df_resampled.fillna(float(config["fillValue"]))
-
-# remove values below/above thresholds
-if config["remValueBelow"]:
-    df_resampled = df_resampled[df_resampled[value_col] >= float(config["remValueBelow"])]
-
-if config["remValueAbove"]:
-    df_resampled = df_resampled[df_resampled[value_col] <= float(config["remValueAbove"])]
-
-# multiply values
-if config["multValue"]:
-    df_resampled[value_col] = df_resampled[value_col] * float(config["multValue"])
-
-# Reset index to make datetime a column
-df_resampled = df_resampled.reset_index()
-# df_resampled.columns = ['datetime', value_col]
-
-# Convert to CSV
-result = df_resampled.to_csv(index=False)
-result
-\`;
-
-                        try {
-                            const result = await pyodide.runPythonAsync(pythonCode);
-                            return { success: true, data: result };
-                        } catch (error) {
-                            return { success: false, error: error.message };
-                        }
-                    }
-
-                    self.onmessage = async (e) => {
-                        if (e.data.type === 'init') {
-                            self.postMessage({ type: 'progress', percent: 20, status: 'Loading Pyodide...' });
-                            await loadPyodide();
-                            self.postMessage({ type: 'progress', percent: 40, status: 'Pyodide loaded successfully' });
-                            self.postMessage({ type: 'ready' });
-                        } else if (e.data.type === 'process') {
-                            self.postMessage({ type: 'progress', percent: 50, status: 'Processing data...' });
-                            const result = await processCSV(e.data.csvContent, e.data.params);
-                            self.postMessage({ type: 'progress', percent: 90, status: 'Finalizing...' });
-                            
-                            if (result.success) {
-                                self.postMessage({ type: 'complete', data: result.data });
-                            } else {
-                                self.postMessage({ type: 'error', error: result.error });
-                            }
-                        }
-                    };
-                `;
+                updateProgress(30, 'Processing data with Python...');
                 
-                worker = new Worker(URL.createObjectURL(new Blob([workerCode], { type: 'application/javascript' })));
-
-                worker.onmessage = (e) => {
-                    if (e.data.type === 'progress') {
-                        updateProgress(e.data.percent, e.data.status);
-                    } else if (e.data.type === 'ready') {
-                        worker.postMessage({ type: 'process', csvContent: csvContent, params: params });
-                    } else if (e.data.type === 'complete') {
-                        processedData = e.data.data;
-                        updateProgress(100, 'Complete!');
-                        showResult(`Data resampled successfully with timestep: ${params.timestep}`);
-                        document.getElementById('processBtn').disabled = false;
-                    } else if (e.data.type === 'error') {
-                        showError('Processing error: ' + e.data.error);
-                        document.getElementById('processBtn').disabled = false;
-                        showProgress(false);
-                    }
-                };
-
-                worker.onerror = (error) => {
-                    showError('Worker error: ' + error.message);
-                    document.getElementById('processBtn').disabled = false;
-                    showProgress(false);
-                };
-
-                worker.postMessage({ type: 'init' });
+                worker.postMessage({ type: 'process', csvContent: csvContent, params: params });
 
             } catch (error) {
                 showError('Error: ' + error.message);
@@ -567,5 +595,4 @@ result
         }
     </script>
 </body>
-
 </html>
